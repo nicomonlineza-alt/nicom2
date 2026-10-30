@@ -6,3 +6,6 @@ h1,h2,h3,.slide-copy h3{color:#ff6a00;text-shadow:0 2px 18px #ff6a0026}
 .card:hover{border-color:#39ff6b88;box-shadow:inset 0 1px 0 #ffffff24,0 0 25px #39ff6b2a,0 20px 50px #0004}
 .team-slider{border-color:#39ff6b38;box-shadow:inset 0 1px 0 #ffffff20,0 0 18px #39ff6b16,0 16px 44px #0003}
 .compare .card:last-child{border-color:#39ff6b70;box-shadow:inset 0 0 40px #39ff6b0c,0 0 25px #39ff6b20}
+
+/* Info navigation: a gentle, accessible neon-green glow */
+nav a.info-link{color:#e8ffed;text-shadow:0 0 10px #39ff6b55;transition:color .2s ease,text-shadow .2s ease}nav a.info-link:hover,nav a.info-link:focus-visible{color:var(--green);text-shadow:0 0 7px #39ff6b99,0 0 18px #39ff6b55;outline:none}nav a.info-link:focus-visible{outline:1px solid #39ff6b88;outline-offset:5px;border-radius:4px}
