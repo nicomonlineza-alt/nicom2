@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nicom-AI — Messenger Operations Inbox</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .inbox-layout { display: grid; grid-template-columns: 340px 1fr; gap: 18px; min-height: 680px; height: calc(100vh - 160px); margin: 20px 0 30px; }
+    .conv-list { display: flex; flex-direction: column; overflow-y: auto; padding: 14px; gap: 10px; }
+    .conv-item { padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,0.04); cursor: pointer; transition: .2s; }
+    .conv-item:hover, .conv-item.active { border-color: var(--cyan); background: rgba(22,140,255,0.12); box-shadow: 0 0 16px rgba(22,140,255,0.15); }
+    .conv-item .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .conv-item .user { font-weight: 750; font-size: .95rem; color: #fff; }
+    .conv-item .time { font-size: .75rem; color: var(--muted); }
+    .conv-item .preview { font-size: .83rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .agent-pill { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; padding: 2px 8px; border-radius: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+    .agent-cathy { background: rgba(57,255,120,0.15); color: var(--green); border: 1px solid rgba(57,255,120,0.3); }
+    .agent-saun { background: rgba(22,140,255,0.15); color: var(--cyan); border: 1px solid rgba(22,140,255,0.3); }
+    .agent-jenny { background: rgba(195,167,255,0.15); color: #d0baff; border: 1px solid rgba(195,167,255,0.3); }
+    .agent-john { background: rgba(255,215,0,0.15); color: #ffe169; border: 1px solid rgba(255,215,0,0.3); }
+    .chat-pane { display: flex; flex-direction: column; height: 100%; border-radius: 22px; overflow: hidden; }
+    .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--line); background: rgba(2,8,23,0.7); backdrop-filter: blur(20px); }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+    .bubble { max-width: 75%; padding: 12px 18px; border-radius: 16px; font-size: .92rem; line-height: 1.5; }
+    .bubble.customer { align-self: flex-start; background: rgba(255,255,255,0.08); border: 1px solid var(--line); color: var(--text); border-bottom-left-radius: 4px; }
+    .bubble.ai { align-self: flex-end; background: linear-gradient(135deg, rgba(22,140,255,0.18), rgba(57,255,120,0.12)); border: 1px solid rgba(22,140,255,0.4); color: #fff; border-bottom-right-radius: 4px; }
+    .bubble.operator { align-self: flex-end; background: linear-gradient(135deg, var(--green), #2ed868); color: #03101a; font-weight: 550; border-bottom-right-radius: 4px; }
+    .bubble-meta { font-size: .72rem; opacity: .7; margin-top: 4px; text-align: right; }
+    .chat-composer { padding: 16px 20px; border-top: 1px solid var(--line); background: rgba(2,8,23,0.7); display: flex; gap: 12px; }
+    .chat-composer input { flex: 1; background: rgba(7,17,22,0.9); border: 1px solid var(--line); color: #fff; border-radius: 12px; padding: 12px 16px; font: inherit; outline: none; }
+    .chat-composer input:focus { border-color: var(--cyan); box-shadow: 0 0 14px rgba(22,140,255,0.25); }
+    .toggle-takeover { display: inline-flex; align-items: center; gap: 8px; font-size: .82rem; font-weight: 700; padding: 6px 14px; border-radius: 20px; cursor: pointer; border: 1px solid var(--line); background: rgba(255,255,255,0.06); transition: .2s; }
+    .toggle-takeover.active { border-color: #ff4757; color: #ff6b81; background: rgba(255,71,87,0.15); }
+    .config-banner { padding: 16px 22px; border-radius: 14px; border: 1px solid rgba(22,140,255,0.4); background: rgba(22,140,255,0.08); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    @media(max-width: 900px){ .inbox-layout { grid-template-columns: 1fr; height: auto; } }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap navin">
+      <a href="index.html" class="brand">
+        <span class="badge"><span class="pulse"></span> LIVE</span>
+        <span>Nicom<em>-AI</em></span>
+      </a>
+      <button class="mobile" aria-expanded="false" aria-label="Toggle navigation">☰</button>
+      <nav id="nav">
+        <a href="index.html">Home</a>
+        <a href="products-services.html">Services</a>
+        <a href="info.html">Solutions</a>
+        <a href="support.html">Support</a>
+        <a href="contact.html">Contact</a>
+        <a href="inbox.html" class="info-link" style="color:var(--green);font-weight:750">Messenger Inbox</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <span class="kicker">Meta Messenger Platform</span>
+        <h2>Central Operations <span class="grad">Inbox</span></h2>
+      </div>
+      <div>
+        <button id="btn-config" class="btn ghost" style="font-size:.85rem; padding:8px 14px;">⚙️ Supabase Settings</button>
+      </div>
+    </div>
+
+    <!-- Configuration prompt if keys are missing -->
+    <div id="setup-banner" class="config-banner" style="display:none;">
+      <div>
+        <strong>Supabase Connection Needed:</strong>
+        <span class="muted">Enter your Supabase URL & Anon Key to connect live messages and realtime updates.</span>
+      </div>
+      <button class="btn primary" id="btn-connect-supabase" style="padding:6px 14px; font-size:.85rem;">Connect Now</button>
+    </div>
+
+    <div class="inbox-layout">
+      <!-- Conversation List -->
+      <aside class="glass conv-list" id="conv-list">
+        <div style="padding: 10px; text-align: center; color: var(--muted); font-size: .88rem;" id="conv-empty">
+          No active Messenger conversations yet.<br><small>New messages will appear here in real time.</small>
+        </div>
+      </aside>
+
+      <!-- Active Thread -->
+      <section class="glass chat-pane" id="chat-pane">
+        <div class="chat-header">
+          <div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <h3 style="margin:0;" id="chat-customer-name">Select a conversation</h3>
+              <span id="chat-agent-badge" class="agent-pill agent-john" style="display:none;">John</span>
+            </div>
+            <small class="muted" id="chat-customer-psid">Waiting for selection</small>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <select id="select-agent" class="btn ghost" style="padding:6px 12px; font-size:.8rem; background:#071116;" disabled>
+              <option value="john">Assign: John (Ops)</option>
+              <option value="cathy">Assign: Cathy (Sales)</option>
+              <option value="saun">Assign: Saun (Support)</option>
+              <option value="jenny">Assign: Jenny (Accounts)</option>
+            </select>
+            <button id="btn-takeover" class="toggle-takeover" disabled>
+              <span>🤖 AI Auto-Responding</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+          <div style="margin:auto; text-align:center; color:var(--muted); max-width:400px;">
+            <div class="ico" style="margin:0 auto 12px;">💬</div>
+            <p>Select a customer conversation from the list to view the message history, take over manually, or reassign AI agents.</p>
+          </div>
+        </div>
+
+        <form class="chat-composer" id="chat-form">
+          <input type="text" id="chat-input" placeholder="Type a message as human operator..." disabled />
+          <button type="submit" class="btn primary" id="btn-send" disabled>Send</button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let supabaseClient = null;
+    let activeConversation = null;
+    let conversations = [];
+
+    // Local storage config
+    function initSupabase() {
+      const url = localStorage.getItem('nicom_supabase_url');
+      const key = localStorage.getItem('nicom_supabase_key');
+      if (!url || !key) {
+        document.getElementById('setup-banner').style.display = 'flex';
+        return false;
+      }
+      document.getElementById('setup-banner').style.display = 'none';
+      try {
+        supabaseClient = supabase.createClient(url, key);
+        loadConversations();
+        subscribeRealtime();
+        return true;
+      } catch (err) {
+        console.error("Supabase init failed", err);
+        return false;
+      }
+    }
+
+    // Modal configuration
+    function promptConfig() {
+      const currentUrl = localStorage.getItem('nicom_supabase_url') || '';
+      const currentKey = localStorage.getItem('nicom_supabase_key') || '';
+      const url = prompt('Enter your Supabase Project URL (e.g. https://xyz.supabase.co):', currentUrl);
+      if (url === null) return;
+      const key = prompt('Enter your Supabase Public Anon Key:', currentKey);
+      if (key === null) return;
+      if (url && key) {
+        localStorage.setItem('nicom_supabase_url', url.trim());
+        localStorage.setItem('nicom_supabase_key', key.trim());
+        initSupabase();
+      }
+    }
+
+    document.getElementById('btn-config').addEventListener('click', promptConfig);
+    document.getElementById('btn-connect-supabase').addEventListener('click', promptConfig);
+
+    async function loadConversations() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient
+        .from('conversations')
+        .select('*')
+        .order('last_message_at', { ascending: false });
+
+      if (error) {
+        console.error("Error loading conversations", error);
+        return;
+      }
+
+      conversations = data || [];
+      renderConvList();
+    }
+
+    function renderConvList() {
+      const container = document.getElementById('conv-list');
+      container.innerHTML = '';
+      if (!conversations.length) {
+        container.innerHTML = '<div style="padding:15px; text-align:center; color:var(--muted); font-size:.88rem;">No active Messenger conversations yet.<br><small>Incoming customer messages will appear live.</small></div>';
+        return;
+      }
+
+      conversations.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'conv-item' + (activeConversation?.id === c.id ? ' active' : '');
+        const timeStr = new Date(c.last_message_at || c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const agent = c.assigned_agent || 'john';
+        item.innerHTML = `
+          <div class="top">
+            <span class="user">${c.customer_name || 'Customer (' + c.external_user_id.slice(-6) + ')'}</span>
+            <span class="time">${timeStr}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="preview">${c.human_takeover ? '👤 Operator active' : '🤖 AI auto-reply'}</span>
+            <span class="agent-pill agent-${agent}">${agent}</span>
+          </div>
+        `;
+        item.onclick = () => selectConversation(c);
+        container.appendChild(item);
+      });
+    }
+
+    async function selectConversation(conv) {
+      activeConversation = conv;
+      renderConvList();
+
+      document.getElementById('chat-customer-name').textContent = conv.customer_name || 'Customer ' + conv.external_user_id;
+      document.getElementById('chat-customer-psid').textContent = 'PSID: ' + conv.external_user_id + ' · Status: ' + conv.status;
+
+      const badge = document.getElementById('chat-agent-badge');
+      badge.style.display = 'inline-flex';
+      badge.className = 'agent-pill agent-' + (conv.assigned_agent || 'john');
+      badge.textContent = (conv.assigned_agent || 'john').toUpperCase();
+
+      const sel = document.getElementById('select-agent');
+      sel.disabled = false;
+      sel.value = conv.assigned_agent || 'john';
+
+      const btnTakeover = document.getElementById('btn-takeover');
+      btnTakeover.disabled = false;
+      updateTakeoverButton(conv.human_takeover);
+
+      document.getElementById('chat-input').disabled = false;
+      document.getElementById('btn-send').disabled = false;
+
+      loadMessages(conv.id);
+    }
+
+    function updateTakeoverButton(isTakeover) {
+      const btn = document.getElementById('btn-takeover');
+      if (isTakeover) {
+        btn.className = 'toggle-takeover active';
+        btn.innerHTML = '<span>👤 Human Takeover ON</span>';
+      } else {
+        btn.className = 'toggle-takeover';
+        btn.innerHTML = '<span>🤖 AI Auto-Responding</span>';
+      }
+    }
+
+    // Toggle takeover
+    document.getElementById('btn-takeover').addEventListener('click', async () => {
+      if (!activeConversation || !supabaseClient) return;
+      const newVal = !activeConversation.human_takeover;
+      const { error } = await supabaseClient
+        .from('conversations')
+        .update({ human_takeover: newVal })
+        .eq('id', activeConversation.id);
+
+      if (!error) {
+        activeConversation.human_takeover = newVal;
+        updateTakeoverButton(newVal);
+        renderConvList();
+      }
+    });
+
+    // Reassign agent
+    document.getElementById('select-agent').addEventListener('change', async (e) => {
+      if (!activeConversation || !supabaseClient) return;
+      const newAgent = e.target.value;
+      const { error } = await supabaseClient
+        .from('conversations')
+        .update({ assigned_agent: newAgent })
+        .eq('id', activeConversation.id);
+
+      if (!error) {
+        activeConversation.assigned_agent = newAgent;
+        const badge = document.getElementById('chat-agent-badge');
+        badge.className = 'agent-pill agent-' + newAgent;
+        badge.textContent = newAgent.toUpperCase();
+        renderConvList();
+      }
+    });
+
+    async function loadMessages(convId) {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: true });
+
+      const container = document.getElementById('chat-messages');
+      container.innerHTML = '';
+
+      if (!data || !data.length) {
+        container.innerHTML = '<div style="margin:auto; text-align:center; color:var(--muted);">No messages in this conversation yet.</div>';
+        return;
+      }
+
+      data.forEach(m => {
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble ' + m.sender_type;
+        const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        let senderTag = 'Customer';
+        if (m.sender_type === 'ai') senderTag = (m.agent_name || 'AI') + ' (AI)';
+        if (m.sender_type === 'operator') senderTag = (m.sender_id || 'Operator') + ' (Staff)';
+
+        bubble.innerHTML = `
+          <div>${escapeHtml(m.message_text)}</div>
+          <div class="bubble-meta">${senderTag} · ${time}</div>
+        `;
+        container.appendChild(bubble);
+      });
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
+    }
+
+    // Send operator message
+    document.getElementById('chat-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text || !activeConversation || !supabaseClient) return;
+
+      input.value = '';
+      input.disabled = true;
+
+      const url = localStorage.getItem('nicom_supabase_url');
+      const key = localStorage.getItem('nicom_supabase_key');
+
+      try {
+        const res = await fetch(`${url}/functions/v1/send-message`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+          },
+          body: JSON.stringify({
+            conversation_id: activeConversation.id,
+            message_text: text,
+            operator_name: 'Nicholas (Operations)'
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Failed to send message to Messenger: ' + (err.error || res.statusText));
+        } else {
+          activeConversation.human_takeover = true;
+          updateTakeoverButton(true);
+          loadMessages(activeConversation.id);
+        }
+      } catch (err) {
+        alert('Send error: ' + err.message);
+      } finally {
+        input.disabled = false;
+        input.focus();
+      }
+    });
+
+    // Realtime subscriptions
+    function subscribeRealtime() {
+      if (!supabaseClient) return;
+
+      supabaseClient
+        .channel('public:messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+          if (activeConversation && payload.new.conversation_id === activeConversation.id) {
+            loadMessages(activeConversation.id);
+          }
+          loadConversations();
+        })
+        .subscribe();
+
+      supabaseClient
+        .channel('public:conversations')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
+          loadConversations();
+        })
+        .subscribe();
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', initSupabase);
+  </script>
+</body>
+</html>
